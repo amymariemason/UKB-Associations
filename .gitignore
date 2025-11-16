@@ -1,0 +1,24 @@
+# RStudio / Posit temporary files
+*.Rproj
+*.Rproj.user/
+*.Rhistory
+*.RData
+*.Ruserdata
+*.Rproj.RData
+*.Renviron
+
+# System / workspace configs
+.cache/
+.config/
+.local/
+.dnanexus_config/
+.sh_history
+.gitconfig
+.git-credentials
+
+# Temporary data files
+*.csv
+*.sample
+*.bgen
+!README.csv  # keep explicit data files if needed
+.Rproj.user

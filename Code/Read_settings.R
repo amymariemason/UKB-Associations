@@ -95,11 +95,10 @@ read_settings_sheet <- function(path, CVD=F, CANCER=F) {
    # get list of outcomes wanted
    value_map <- settings_raw$value
    if (CVD){
-    value_map<-settings_raw$cvd}
+    value_map<-settings_raw$cvdset}
    if (CANCER){
-    value_map<-settings_raw$cancer}
+    value_map<-settings_raw$cancerset}
     
-  value_map<-settings_raw$value
   value_map<- vapply(value_map, parse_yes_no, FUN.VALUE = logical(1))
   
   requested_outcomes <- character()
@@ -161,7 +160,7 @@ read_outcome_definitions <- function(path, outcome_filter = NULL) {
     # 2. Apply the function to each row of the raw data, creating a list of lists
     defs_list <- lapply(seq_len(nrow(defs_raw)), function(i) make_def(defs_raw[i, ]))
     
-    return(list(defs_raw, defs_list))
+    return(list(defs_raw=defs_raw$suggested_variable_name, defs_list=defs_list))
   }
 
 # Convenience helper returning a fully parsed configuration object from a
@@ -175,9 +174,9 @@ parse_control_sheet <- function(path, CVD=F, CANCER=F) {
     outcomes <- read_outcome_definitions(path, outcome_filter = settings$outcomes)
     list(
        filename_out = settings$filename,
-       matched_outcomes = outcomes$defn_raw,
+       matched_outcomes = outcomes$defs_raw,
        diabetes_flag = settings$diabetes_flag,
-       outcomes_def = outcomes$defn_list
+       outcomes_def = outcomes$defs_list
         )
 }
     

@@ -62,77 +62,80 @@ parse_code_vector <- function(x, wildcard = "[A-Z0-9]*") {
 # Helper to read the Settings sheet.  The sheet stores configuration in a
 # simple key/value layout and a list of outcomes to produce.
 
-#test:  path<- "Input/bespoke_outcome_v3.xls"
-read_settings_sheet <- function(path, CVD=TRUE, CANCER=TRUE) {
+#test:  path<- "Inputs/bespoke_outcome_v3.xls"
+read_settings_sheet <- function(path, CVD=F, CANCER=F) {
   settings_raw <- readxl::read_excel(path, sheet = "Settings", .name_repair = "minimal")
   if (nrow(settings_raw) == 0) {
     stop("The Settings sheet is empty – please check the control sheet.")
-  }
+    }
   colnames(settings_raw) <- normalise_colname(colnames(settings_raw))
   if (!"setting" %in% colnames(settings_raw) || !"value" %in% colnames(settings_raw)) {
-    stop("The Settings sheet must contain 'Variable' and 'Value' columns.")
-  }
+    stop("The Settings sheet must contain 'Setting' and 'Value' columns.")
+    }
   
+  #
+  settings_raw <- settings_raw %>% filter(!is.na(setting))
   
   #get filename
-  filename_out<- settings_raw %>% filter(setting=="filename") %>% pull(value)
-  filename_out<-ifelse(filename_out=="","temp", filename_out)
-  filename_out<-paste0(filename_out,"_"format(Sys.Date(), "%M%Y")
+  filename_out<- settings_raw %>% filter(setting=="Filename") %>% pull(value)
+  
+  if (CVD){
+    filename_out<-"CVD"
+    }
+  if (CANCER){
+    filename_out<-"Cancer"
+    }
+  
+  filename_out<-ifelse(is.na(filename_out)|filename_out=="" ,"temp", filename_out)
+  filename_out<-paste0(filename_out,"_",format(Sys.Date(), "%M%Y"))
                        
-                       # get diabetes
-                       diabetes_flag<- parse_yes_no(settings_raw %>% filter(setting=="diabetes") %>% pull(value))
+  # get diabetes
+  diabetes_flag<- parse_yes_no(settings_raw %>% filter(setting=="diabetes") %>% pull(value))
                        
-                       # get list of outcomes wanted
-                       value_map <- settings_raw$value
-                       if (CVD){
-                         value_map<-settings_raw$cvd}
-                       if (CANCER){
-                         value_map<-settings_raw$cancer}
+   # get list of outcomes wanted
+   value_map <- settings_raw$value
+   if (CVD){
+    value_map<-settings_raw$cvd}
+   if (CANCER){
+    value_map<-settings_raw$cancer}
+    
+  value_map<-settings_raw$value
+  value_map<- vapply(value_map, parse_yes_no, FUN.VALUE = logical(1))
+  
+  requested_outcomes <- character()
+  
+  keep_rows <- which(value_map==TRUE)
+  requested_outcomes <- settings_raw$setting[keep_rows]
+  requested_outcomes <- requested_outcomes[requested_outcomes != ""]
+  
+  return(list(
+    filename= filename_out,
+    outcomes = requested_outcomes,
+    diabetes_flag = diabetes_flag
+      )
+    )
 }
-value_map<-parse_yes_no(value_map)
 
-requested_outcomes <- character()
-
-keep_rows <- which(!is.na(value_map) & trimws(as.character(value_map)) != "" & value_map==TRUE)
-requested_outcomes <- setting_raw$setting(keep_rows)
-requested_outcomes <- requested_outcomes[requested_outcomes != ""]
-}
-return(list(
-  filename= filename_out,
-  outcomes = requested_outcomes,
-  diabetes_flag = diabetes_flag
-)
-)
-}
-
-+# Parse the Definitions sheet into a tidy data frame with one row per
-  +# outcome and list columns holding the relevant code sets.
-  +read_outcome_definitions <- function(path, outcome_filter = NULL) {
-    +  defs_raw <- readxl::read_excel(path, sheet = "Definitions", .name_repair = "minimal")
-    +  if (nrow(defs_raw) == 0) {
-      +    stop("The Definitions sheet is empty – please check the control sheet.")
-      +  }
-    +  colnames(defs_raw) <- normalise_colname(colnames(defs_raw))
-    +  required_cols <- c("suggestedvariablename", "outcomename")
-    +  missing_cols <- setdiff(required_cols, colnames(defs_raw))
-    +  if (length(missing_cols) > 0) {
-      +    stop(paste0("Definitions sheet is missing required column(s): ",
-                       +                paste(missing_cols, collapse = ", ")))
-      +  }
-    +  defs_raw <- defs_raw[!is.na(defs_raw$suggestedvariablename) &
-                              +                         trimws(defs_raw$suggestedvariablename) != "", ]
-    +  if (!is.null(outcome_filter) && length(outcome_filter) > 0) {
-      +    match_ids <- tolower(trimws(defs_raw$suggestedvariablename)) %in%
-        +      tolower(trimws(outcome_filter))
-      +    defs_raw <- defs_raw[match_ids, ]
-      +  }
-    +  if (nrow(defs_raw) == 0) {
-      +    stop("No matching outcomes found in Definitions sheet for the requested set.")
-      +  }
-    # 1. Define the function to create a single list (row) of outcome parameters
+# Parse the Definitions sheet into a tidy data frame with one row per
+# outcome and list columns holding the relevant code sets.
+read_outcome_definitions <- function(path, outcome_filter = NULL) {
+    defs_raw <- readxl::read_excel(path, sheet = "Definitions", .name_repair = "minimal")
+    if (nrow(defs_raw) == 0) {
+      stop("The Definitions sheet is empty – please check the control sheet.")
+        }
+   colnames(defs_raw) <- normalise_colname(colnames(defs_raw))
+   defs_raw <- defs_raw[!is.na(defs_raw$suggested_variable_name) &
+       trimws(defs_raw$suggested_variable_name) != "", ]
+   if (!is.null(outcome_filter) && length(outcome_filter) > 0) {
+   match_ids <- tolower(trimws(defs_raw$suggested_variable_name)) %in%
+       tolower(trimws(outcome_filter))
+       defs_raw <- defs_raw[match_ids, ]
+     }
+   if (nrow(defs_raw) == 0) {
+       stop("No matching outcomes found in Definitions sheet for the requested set.")
+   }
+#1. Define the function to create a single list (row) of outcome parameters
     make_def <- function(row) {
-      # Note: I am assuming 'parse_yes_no' and 'parse_code_vector' are user-defined functions
-      # that correctly process the cells of the control sheet.
       list(
         outcome_id = trimws(as.character(row[["suggested_variable_name"]])),
         label = trimws(as.character(row[["outcome_name"]])),
@@ -158,24 +161,25 @@ return(list(
     # 2. Apply the function to each row of the raw data, creating a list of lists
     defs_list <- lapply(seq_len(nrow(defs_raw)), function(i) make_def(defs_raw[i, ]))
     
-    return(defs_list)
+    return(list(defs_raw, defs_list))
   }
-  +
-    +# Convenience helper returning a fully parsed configuration object from a
-    +# control sheet path.  The returned list contains:
-    +#   * settings – raw key/value pairs from the Settings sheet
-    +#   * outcomes – list of outcome definitions
-    +#   * diabetes_flag – TRUE if diabetes specific post-processing is required
-    +parse_control_sheet <- function(path) {
-      +  settings <- read_settings_sheet(path)
-      +  outcomes <- read_outcome_definitions(path, outcome_filter = settings$outcomes)
-      +  list(
-        +    settings = settings$values,
-        +    requested_outcomes = settings$outcomes,
-        +    diabetes_flag = settings$diabetes_flag,
-        +    outcomes = outcomes
-        +  )
-      +}
+
+# Convenience helper returning a fully parsed configuration object from a
+# control sheet path.  The returned list contains:
+#   * filename - name for file to create
+#   * matched_outcomes – list of matched outcome
+#   * diabetes_flag – TRUE if diabetes specific post-processing is required
+#   * outcomes_def - list of lists of the definitions defined
+parse_control_sheet <- function(path, CVD=F, CANCER=F) {
+    settings <- read_settings_sheet(path,CVD = CVD, CANCER = CANCER)
+    outcomes <- read_outcome_definitions(path, outcome_filter = settings$outcomes)
+    list(
+       filename_out = settings$filename,
+       matched_outcomes = outcomes$defn_raw,
+       diabetes_flag = settings$diabetes_flag,
+       outcomes_def = outcomes$defn_list
+        )
+}
     
     
     

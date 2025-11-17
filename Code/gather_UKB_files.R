@@ -96,19 +96,28 @@ data_requirements <- function(definitions_summary) {
     match_icd10_primary_care = "match_icd10_primary_care"
   )
 
-  reqs <- lapply(names(code_flags), function(code_type) {
-    flag_col <- code_flags[[code_type]]
-    requires_code <- isTRUE(any(definitions_summary[[flag_col]]))
-    outcomes_needed <- definitions_summary[get(flag_col) == TRUE, .(outcome_id)]
-
-    data.table(
-      code_type = code_type,
-      any_required = requires_code,
-      required_outcomes = list(outcomes_needed)
+  # 1. Create the named tibble of any_required = TRUE/FALSE
+  any_required_tbl <- tibble(
+    !!! setNames(
+      map(code_flags, ~ any(definitions_summary[[.x]])),
+      names(code_flags)
     )
-  })
-
-  rbindlist(reqs)
+  )
+  
+  # 2. Create a named list of outcomes per code type
+  outcomes_list <- map(
+    code_flags,
+    ~ definitions_summary[get(.x) == TRUE, outcome_id]
+  )
+  
+  # Name the list for clarity
+  names(outcomes_list) <- names(code_flags)
+  
+  # Return both objects together
+  list(
+    datasets = any_required_tbl,
+    outcome_lists = outcomes_list
+  )
 }
 
 # Given a settings object produced by parse_control_sheet(), return a
@@ -126,6 +135,7 @@ curate_settings <- function(settings) {
     matched_outcomes = settings$matched_outcomes,
     diabetes_flag = settings$diabetes_flag,
     outcomes_def = settings$outcomes_def,
-    data_requirements = data_requirements
+    data_requirements = data_requirements$datasets,
+    data_loop_lists = data_requirements$outcome_lists
   )
 }

@@ -13,9 +13,9 @@
 # Practise input
 # path<- "Inputs/bespoke_outcome_v3.xls"
 #
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(readxl, tidyverse) 
 
-library(readxl)
-library(tidyverse)
 
 # Normalise column names from the Excel workbook into lower snake case so
 # we can address them reliably regardless of minor formatting

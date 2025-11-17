@@ -22,4 +22,4 @@
 !README.csv  # keep explicit data files if needed
 .Rproj.user
 *.tar.gz
-
+*/R/*

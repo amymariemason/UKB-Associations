@@ -1,7 +1,8 @@
 #### Utility helpers for working with UKB outcome control sheet outputs
 #### (originally based on code from Scott Richie)
 
-library(data.table)
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(data.table, tidyverse) 
 
 # Simple infix helper to provide a default when a value is NULL.  Keeps
 # the curate_settings return value backwards compatible with the naming
@@ -24,9 +25,8 @@ load_from_rap <- function(rap_path, work_dir = "./Inputs") {
   fread(sprintf("%s/input_data/%s", work_dir, fname), na.strings = c("", "NA"))
 }
 
-# Load ICD codes associated with cancer register
-cancer_icd10 <- load_from_rap("common/Cancer Register/icd10_codes.csv", "./Inputs")
-cancer_icd9 <- load_from_rap("common/Cancer Register/icd9_codes.csv", "./Inputs")
+# test: Load ICD codes associated with cancer register
+# cancer_icd10 <- load_from_rap("common/Cancer Register/icd10_codes.csv", "./Inputs")
 
 # Helper to determine whether a code vector contains any usable entries.
 # This mirrors the behaviour of the settings objects produced by
@@ -79,12 +79,13 @@ summarise_outcome_definitions <- function(outcome_defs) {
 # outcome definition uses it, alongside the list of definitions requiring
 # that code type.  Intended to sit alongside the row-wise outcome summary
 # from `summarise_outcome_definitions()` for quick review.
-summarise_code_requirements <- function(definitions_summary) {
+data_requirements <- function(definitions_summary) {
   if (!is.data.table(definitions_summary)) {
     stop("definitions_summary must be a data.table from summarise_outcome_definitions().")
   }
 
   code_flags <- list(
+    prevalent_incident="prevalent_incident",
     icd9 = "has_icd9",
     icd10 = "has_icd10",
     death = "has_death",
@@ -98,7 +99,7 @@ summarise_code_requirements <- function(definitions_summary) {
   reqs <- lapply(names(code_flags), function(code_type) {
     flag_col <- code_flags[[code_type]]
     requires_code <- isTRUE(any(definitions_summary[[flag_col]]))
-    outcomes_needed <- definitions_summary[get(flag_col) == TRUE, .(outcome_id, label)]
+    outcomes_needed <- definitions_summary[get(flag_col) == TRUE, .(outcome_id)]
 
     data.table(
       code_type = code_type,
@@ -110,52 +111,21 @@ summarise_code_requirements <- function(definitions_summary) {
   rbindlist(reqs)
 }
 
-# Convert the list-column of data.tables in `code_requirements` into a
-# more directly readable summary.  This helper produces a single row per
-# code type with a comma-separated list of outcome labels (and IDs) that
-# require the relevant coding system.  Useful when quickly checking which
-# definitions need each code set after running `curate_settings()`.
-format_code_requirements <- function(code_requirements) {
-  if (!is.data.table(code_requirements)) {
-    stop("code_requirements must be the data.table returned by summarise_code_requirements().")
-  }
-
-  code_requirements[, .(
-    code_type,
-    any_required,
-    outcomes = vapply(required_outcomes, function(dt) {
-      if (is.null(dt) || nrow(dt) == 0) {
-        return("")
-      }
-
-      paste(sprintf("%s (ID: %s)", dt$label, dt$outcome_id), collapse = ", ")
-    }, character(1))
-  )]
-}
-
 # Given a settings object produced by parse_control_sheet(), return a
-# curated version with an attached summary table.  Optionally write the
-# summary out to disk for record keeping.
-curate_settings <- function(settings, summary_path = NULL) {
+# curated version with an attached summary table.  
+curate_settings <- function(settings) {
   if (is.null(settings$outcomes_def)) {
     stop("The settings object does not contain an 'outcomes_def' element.")
   }
 
   summary_tbl <- summarise_outcome_definitions(settings$outcomes_def)
-  code_requirements <- summarise_code_requirements(summary_tbl)
-  code_requirements_formatted <- format_code_requirements(code_requirements)
-
-  if (!is.null(summary_path)) {
-    fwrite(summary_tbl, summary_path)
-  }
+  data_requirements <- data_requirements(summary_tbl)
 
   list(
-    filename_out = settings$filename_out %||% settings$filename,
+    filename_out = settings$filename_out,
     matched_outcomes = settings$matched_outcomes,
     diabetes_flag = settings$diabetes_flag,
     outcomes_def = settings$outcomes_def,
-    definitions_summary = summary_tbl,
-    code_requirements = code_requirements,
-    code_requirements_formatted = code_requirements_formatted
+    data_requirements = data_requirements
   )
 }

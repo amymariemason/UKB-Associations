@@ -10,6 +10,9 @@
 #   * a `Definitions` sheet containing one row per outcome
 #   * optional Read code mapping sheets (`Read_V2`, `Read_V3`)
 #
+# Practise input
+# path<- "Inputs/bespoke_outcome_v3.xls"
+#
 
 library(readxl)
 library(tidyverse)

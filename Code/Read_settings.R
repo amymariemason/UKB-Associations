@@ -14,7 +14,7 @@
 # path<- "Inputs/bespoke_outcome_v3.xls"
 #
 if (!require("pacman")) install.packages("pacman")
-pacman::p_load(readxl, tidyverse) 
+pacman::p_load(readxl, tidyverse, data.table) 
 
 
 # Normalise column names from the Excel workbook into lower snake case so
@@ -62,12 +62,61 @@ parse_code_vector <- function(x, wildcard = "[A-Z0-9]*") {
   paste0("^", split_values, "$")
 }
 
+# Function to load a dataset from the RAP into a local directory.  A
+# sensible default work_dir is provided so the function can also be used
+# locally without repeatedly specifying the target folder.
+load_from_rap <- function(rap_path, work_dir = "./Inputs") {
+  if (!dir.exists(sprintf("%s/ukb_input_data/", work_dir))) {
+    system(sprintf("mkdir -p %s/ukb_input_data", work_dir), ignore.stdout = FALSE)
+  }
+  fname <- basename(rap_path)
+  if (!file.exists(sprintf("%s/ukb_input_data/%s", work_dir, fname))) {
+    system(sprintf("dx download '%s' -o '%s/ukb_input_data/%s'", rap_path, work_dir, fname), ignore.stdout = FALSE)
+  }
+  fread(sprintf("%s/ukb_input_data/%s", work_dir, fname), na.strings = c("", "NA"))
+}
+
+## load in lists of existing icd10 codes
+
+#cancer
+cancer_icd10_appears<-load_from_rap(rap_path="common/Cancer Register/icd10_codes.csv",
+              work_dir="./Inputs/ukb_input_data/cancer/")%>% #
+  filter(appears_in_records==TRUE)%>% pull(code) 
+
+cancer_icd9_appears<-load_from_rap(rap_path="common/Cancer Register/icd9_codes.csv",
+              work_dir="./Inputs/ukb_input_data/cancer/")%>% #
+  filter(appears_in_records==TRUE)%>% pull(code)
+
+#hes
+hes_icd9_appears<-load_from_rap(rap_path="/common/Hospital Records/icd9_codes.csv",
+                           work_dir="./Inputs/ukb_input_data/hes/") %>% #
+  filter(appears_in_records==TRUE)%>% pull(code)
+  
+hes_icd10_appears<-load_from_rap(rap_path="/common/Hospital Records/icd10_codes.csv",
+                        work_dir="./Inputs/ukb_input_data/hes/") %>% #
+  filter(appears_in_records==TRUE)%>% pull(code)
+
+opcs4_appears<-load_from_rap(rap_path="/common/Hospital Records/opcs4_codes.csv",
+                         work_dir="./Inputs/ukb_input_data/hes/")%>% #
+  filter(appears_in_records==TRUE)%>% pull(code)
+
+opcs3_appears<-load_from_rap(rap_path="/common/Hospital Records/opcs3_codes.csv",
+                     work_dir="./Inputs/ukb_input_data/hes/")%>% #
+  filter(appears_in_records==TRUE)%>% pull(code)
+
+
+#death
+death_icd10_appears<-load_from_rap(rap_path="/common/Deaths/icd10_codes.csv",
+                         work_dir="./Inputs/ukb_input_data/death/") %>% #
+  filter(appears_in_records==TRUE)%>% pull(code)
+    
+
 # Helper to read the Settings sheet.  The sheet stores configuration in a
 # simple key/value layout and a list of outcomes to produce.
 
 #test:  path<- "Inputs/bespoke_outcome_v3.xls"
 read_settings_sheet <- function(path, CVD=F, CANCER=F) {
-  settings_raw <- readxl::read_excel(path, sheet = "Settings", .name_repair = "minimal")
+  settings_raw <- readxl::read_excel(path, sheet = "Settings", .name_repair = "minimal",   col_types = "text")
   if (nrow(settings_raw) == 0) {
     stop("The Settings sheet is empty – please check the control sheet.")
     }
@@ -118,10 +167,48 @@ read_settings_sheet <- function(path, CVD=F, CANCER=F) {
     )
 }
 
+# Normalise codes coming from a reference catalogue so that they can be
+# compared against parsed regex patterns (upper case with periods removed).
+normalise_catalog_code <- function(x) {
+  gsub("\\.", "", toupper(trimws(as.character(x))))
+}
+
+
+# Resolve a comma separated list of codes using a catalogue of allowed UKB
+# codes, returning both the matched set and a report that details unmatched
+# patterns.
+resolve_code_patterns <- function(code_string, catalog_codes, wildcard, report=FALSE) {
+  patterns <- parse_code_vector(code_string, wildcard = wildcard)
+  
+  # If no catalogue is provided, throw error
+  if (is.null(catalog_codes)) {
+    stop(sprintf("%c code list filter missing", catalog_codes))
+  }
+  
+  catalog_codes <- normalise_catalog_code(catalog_codes)
+  matches <- lapply(patterns, function(pat) catalog_codes[grepl(pat, catalog_codes)])
+  matched_codes <- sort(unique(unlist(matches)))
+  
+  if (report){
+  report <- tibble::tibble(
+    requested_pattern = patterns,
+    matched_codes = I(matches),
+    matched = lengths(matches) > 0,
+  )
+  return(list(matched_codes=matched_codes, report=report))
+  }
+  
+  return(matched_codes=matched_codes)
+}
+
+
 # Parse the Definitions sheet into a tidy data frame with one row per
 # outcome and list columns holding the relevant code sets.
 read_outcome_definitions <- function(path, outcome_filter = NULL) {
-    defs_raw <- readxl::read_excel(path, sheet = "Definitions", .name_repair = "minimal")
+    defs_raw <- readxl::read_excel(path,
+                                   sheet = "Definitions",
+                                   .name_repair = "minimal",
+                                   col_types = "text")
     if (nrow(defs_raw) == 0) {
       stop("The Definitions sheet is empty – please check the control sheet.")
         }
@@ -144,17 +231,27 @@ read_outcome_definitions <- function(path, outcome_filter = NULL) {
         prevalent_incident = parse_yes_no(row[["prevalent_incident"]]),
         use_primary_care = parse_yes_no(row[["use_primary_care"]]),
         match_icd10_to_read = parse_yes_no(row[["match_icd10_primary_care_codes"]]),
-        icd9 = parse_code_vector(row[["icd_9_codes"]], wildcard = "[0-9]*"),
-        icd10 = parse_code_vector(row[["icd_10_codes"]], wildcard = "[0-9]*"),
-        death = parse_code_vector(row[["death_40001_40002"]], wildcard = "[0-9]*"),
+        icd9 = resolve_code_patterns(code_string = row[["icd_9_codes"]],
+                                     catalog_codes = hes_icd9_appears, 
+                                    wildcard="[0-9]*"), 
+        icd10 = resolve_code_patterns(code_string = row[["icd_10_codes"]],
+                                     catalog_codes = hes_icd9_appears, 
+                                     wildcard="[0-9]*"), 
+        death = resolve_code_patterns(code_string = row[["death_40001_40002"]],
+                                      catalog_codes = death_icd10_appears, 
+                                      wildcard="[0-9]*"), 
         self_report_20002 = parse_code_vector(row[["self_report_20002"]], wildcard = "[0-9]*"),
         self_report_20004 = parse_code_vector(row[["self_report_20004"]], wildcard = "[0-9]*"),
         self_report_6150 = parse_code_vector(row[["self_report_6150"]], wildcard = "[0-9]*"),
         self_report_6152 = parse_code_vector(row[["self_report_6152"]], wildcard = "[0-9]*"),
         self_report_6153 = parse_code_vector(row[["self_report_6153"]], wildcard = "[0-9]*"),
         self_report_6177 = parse_code_vector(row[["self_report_6177"]], wildcard = "[0-9]*"),
-        procedures_opcs3 = parse_code_vector(row[["procedures_opcs3"]], wildcard = "[0-9]*"),
-        procedures_opcs4 = parse_code_vector(row[["procedures_opcs4"]], wildcard = "[0-9]*"),
+        procedures_opcs3 = resolve_code_patterns(code_string = row[["procedures_opcs3"]],
+                                      catalog_codes = opcs3_appears, 
+                                      wildcard="[0-9]*"), 
+        procedures_opcs4 = resolve_code_patterns(code_string = row[["procedures_opcs4"]],
+                                                 catalog_codes = opcs4_appears, 
+                                                 wildcard="[0-9]*"), 
         cancer_registry = parse_code_vector(row[["cancer_histology"]], wildcard = "[0-9]*"),
         read_v2 = parse_code_vector(row[["read_v2_primary_care_codes"]], wildcard = "[0-9]*"),
         read_v3 = parse_code_vector(row[["read_v3_primary_care_codes"]], wildcard = "[0-9]*")

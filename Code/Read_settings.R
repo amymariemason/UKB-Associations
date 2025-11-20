@@ -109,6 +109,8 @@ opcs3_appears<-load_from_rap(rap_path="/common/Hospital Records/opcs3_codes.csv"
 death_icd10_appears<-load_from_rap(rap_path="/common/Deaths/icd10_codes.csv",
                          work_dir="./Inputs/ukb_input_data/death/") %>% #
   filter(appears_in_records==TRUE)%>% pull(code)
+
+#
     
 
 # Helper to read the Settings sheet.  The sheet stores configuration in a

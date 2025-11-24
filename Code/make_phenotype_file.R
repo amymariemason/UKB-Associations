@@ -2,6 +2,7 @@
 
 library(data.table)
 library(foreach)
+library(jsonlite)
 
 # Check if we have the necessary python libraries installed for dx extract_dataset
 if (system("python3 -c 'import pandas'", ignore.stderr=TRUE)) {
@@ -82,4 +83,62 @@ for (entity_type in unique(fields$entity)) {
 }
 
 # Upload field list to persistent storage
-system("dx upload medical_history/Amy* --destination 'users/Amy/Define Outcomes Script/'", wait=TRUE)
+system("dx upload medical_history/Amy* --destination '/users/Amy/outcomes_scripts/'", wait=TRUE)
+
+# Make raw_data directory
+system("dx mkdir -p '/users/Amy/outcomes_scripts/raw_data/'")
+
+# Detect field files to extract
+fields_files <- system("dx ls '/users/Amy/outcomes_scripts/*.txt'", intern=TRUE)
+
+# Detect dataset file for Table Exporter
+dataset_file <- system("dx ls ~/*.dataset", intern=TRUE)
+
+# Run Table Exporter on each field file
+message("  Launching Table Exporter...")
+foreach(ff=fields_files, .combine=rbind) %do% {
+  # Detect entity type
+  entity <- gsub("(.*_fields_)|(_entity.txt)", "", ff)
+  
+  # Build Table Exporter command
+  cmd <- "dx run table-exporter"
+  cmd <- paste(cmd, sprintf("-idataset_or_cohort_or_dashboard=%s", dataset_file))
+  cmd <- paste(cmd, "-icoding_option=RAW")
+  cmd <- paste(cmd, sprintf("-ientity=%s", entity))
+  cmd <- paste(cmd, sprintf("-ifield_names_file_txt='/users/Amy/outcomes_scripts/%s'", ff))
+  cmd <- paste(cmd, "--brief --yes --ignore-reuse")
+  cmd <- paste(cmd, "--destination='/users/Amy/outcomes_scripts/raw_data/'")
+  
+  # Some need bigger instance types
+  big_entities <- c("olink_0", "hesin", "hesin_oper", "hesin_diag", 
+                    "gp_clinical", "gp_registrations", "gp_scripts")
+  if (entity %in% big_entities || ff == "nmr_fields_participant_entity.txt") {
+    cmd <- paste(cmd, "--instance-type='mem1_ssd1_v2_x16'")
+  } else {
+    cmd <- paste(cmd, "--instance-type='mem1_ssd1_v2_x8'")
+  }
+  
+  # Some need prefixes other than 'data'
+  if (entity == "olink_0") cmd <- paste(cmd, "-ioutput='olink_instance_0'")
+  if (entity == "olink_2") cmd <- paste(cmd, "-ioutput='olink_instance_2'")
+  if (entity == "olink_3") cmd <- paste(cmd, "-ioutput='olink_instance_3'")
+  if (ff == "proteomics_fields_participant_entity.txt") cmd <- paste(cmd, "-ioutput='sample_metadata'")
+  
+  prefix_as_entity <- c("death", "death_cause", "hesin", "hesin_oper", 
+                        "hesin_diag", "gp_clinical", "gp_registrations", "gp_scripts")
+  if (entity %in% prefix_as_entity) cmd <- paste(cmd, sprintf("-output='%s'", entity))
+  
+  # Launch Table Exporter
+  jid <- system(cmd, intern=TRUE)
+  
+  # Return information and job id
+  data.table("field_file"=ff, job_id=jid, state="", completed=FALSE)
+}
+
+
+# Get the state of a job on DNA nexus
+get_job_state <- function(jid) {
+  fromJSON(system(sprintf("dx find jobs --id %s --json", jid), intern=TRUE))$state
+}
+
+get_job_state(jid)

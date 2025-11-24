@@ -80,38 +80,44 @@ load_from_rap <- function(rap_path, work_dir = "./Inputs") {
 
 #cancer
 cancer_icd10_appears<-load_from_rap(rap_path="common/Cancer Register/icd10_codes.csv",
-              work_dir="./Inputs/ukb_input_data/cancer/")%>% #
+              work_dir="./Inputs/cancer/")%>% #
   filter(appears_in_records==TRUE)%>% pull(code) 
 
 cancer_icd9_appears<-load_from_rap(rap_path="common/Cancer Register/icd9_codes.csv",
-              work_dir="./Inputs/ukb_input_data/cancer/")%>% #
+              work_dir="./Inputs/cancer/")%>% #
   filter(appears_in_records==TRUE)%>% pull(code)
 
 #hes
 hes_icd9_appears<-load_from_rap(rap_path="/common/Hospital Records/icd9_codes.csv",
-                           work_dir="./Inputs/ukb_input_data/hes/") %>% #
+                           work_dir="./Inputs/hes/") %>% #
   filter(appears_in_records==TRUE)%>% pull(code)
   
 hes_icd10_appears<-load_from_rap(rap_path="/common/Hospital Records/icd10_codes.csv",
-                        work_dir="./Inputs/ukb_input_data/hes/") %>% #
+                        work_dir="./Inputs/hes/") %>% #
   filter(appears_in_records==TRUE)%>% pull(code)
 
 opcs4_appears<-load_from_rap(rap_path="/common/Hospital Records/opcs4_codes.csv",
-                         work_dir="./Inputs/ukb_input_data/hes/")%>% #
+                         work_dir="./Inputs/hes/")%>% #
   filter(appears_in_records==TRUE)%>% pull(code)
 
 opcs3_appears<-load_from_rap(rap_path="/common/Hospital Records/opcs3_codes.csv",
-                     work_dir="./Inputs/ukb_input_data/hes/")%>% #
+                     work_dir="./Inputs/hes/")%>% #
   filter(appears_in_records==TRUE)%>% pull(code)
 
 
 #death
 death_icd10_appears<-load_from_rap(rap_path="/common/Deaths/icd10_codes.csv",
-                         work_dir="./Inputs/ukb_input_data/death/") %>% #
+                         work_dir="./Inputs/death/") %>% #
   filter(appears_in_records==TRUE)%>% pull(code)
 
-#
+#read_codes
+read2_codes_appears<- load_from_rap(rap_path="/common/Primary Care/read2_codes.csv",
+                                    work_dir="./Inputs/primary/") %>% #
+  filter(in_clinical_records==TRUE)%>% pull(read_code)
     
+read3_codes_appears<- load_from_rap(rap_path="/common/Primary Care/read3_codes.csv",
+                                    work_dir="./Inputs/primary/") %>% #
+  filter(in_clinical_records==TRUE)%>% pull(read_code)
 
 # Helper to read the Settings sheet.  The sheet stores configuration in a
 # simple key/value layout and a list of outcomes to produce.
@@ -255,10 +261,14 @@ read_outcome_definitions <- function(path, outcome_filter = NULL) {
                                                  catalog_codes = opcs4_appears, 
                                                  wildcard="[0-9]*"), 
         cancer_registry = parse_code_vector(row[["cancer_histology"]], wildcard = "[0-9]*"),
-        read_v2 = parse_code_vector(row[["read_v2_primary_care_codes"]], wildcard = "[0-9]*"),
-        read_v3 = parse_code_vector(row[["read_v3_primary_care_codes"]], wildcard = "[0-9]*")
+        read_v2 = resolve_code_patterns(code_string = row[["read_v2_primary_care_codes"]],
+                                        catalog_codes = read2_codes_appears, 
+                                        wildcard="[0-9]*"), 
+        read_v3 = resolve_code_patterns(code_string = row[["read_v3_primary_care_codes"]],
+                                        catalog_codes = read3_codes_appears, 
+                                        wildcard="[0-9]*")
       )
-    }
+  }
     # 2. Apply the function to each row of the raw data, creating a list of lists
     defs_list <- lapply(seq_len(nrow(defs_raw)), function(i) make_def(defs_raw[i, ]))
     
@@ -281,7 +291,9 @@ parse_control_sheet <- function(path, CVD=F, CANCER=F) {
        outcomes_def = outcomes$defs_list
         )
 }
-    
-    
+
+##### testing value
+# path<- "Inputs/bespoke_outcome_v4.xlsx"    
+# test<- parse_control_sheet(path, CVD=T)    
     
     

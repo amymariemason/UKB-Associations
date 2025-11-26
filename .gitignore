@@ -8,7 +8,7 @@
 *.Renviron
 */R/*
 # System / workspace configs
-.cache/
+*cache/
 .config/
 .local/
 .dnanexus_config/

@@ -1,8 +1,7 @@
 # based on Scott's curate field file
 
-library(data.table)
-library(foreach)
-library(jsonlite)
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(data.table, tidyverse, foreach, jsonlite) 
 
 # Check if we have the necessary python libraries installed for dx extract_dataset
 if (system("python3 -c 'import pandas'", ignore.stderr=TRUE)) {

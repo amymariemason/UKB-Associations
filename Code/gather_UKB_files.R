@@ -86,6 +86,7 @@ data_requirements <- function(definitions_summary) {
 
   code_flags <- list(
     prevalent_incident="prevalent_incident",
+    use_primary_care="use_primary_care",
     icd9 = "has_icd9",
     icd10 = "has_icd10",
     death = "has_death",
@@ -103,6 +104,10 @@ data_requirements <- function(definitions_summary) {
       names(code_flags)
     )
   )
+  # drop primary care definitions if primary care flag off
+  
+  if(!any_required_tbl$use_primary_care) 
+    {any_required_tbl$primary_care_read<-FALSE}
   
   # 2. Create a named list of outcomes per code type
   outcomes_list <- map(
@@ -110,6 +115,7 @@ data_requirements <- function(definitions_summary) {
     ~ definitions_summary[get(.x) == TRUE, outcome_id]
   )
   
+
   # Name the list for clarity
   names(outcomes_list) <- names(code_flags)
   

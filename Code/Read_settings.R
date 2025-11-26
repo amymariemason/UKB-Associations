@@ -243,7 +243,7 @@ read_outcome_definitions <- function(path, outcome_filter = NULL) {
                                      catalog_codes = hes_icd9_appears, 
                                     wildcard="[0-9]*"), 
         icd10 = resolve_code_patterns(code_string = row[["icd_10_codes"]],
-                                     catalog_codes = hes_icd9_appears, 
+                                     catalog_codes = hes_icd10_appears, 
                                      wildcard="[0-9]*"), 
         death = resolve_code_patterns(code_string = row[["death_40001_40002"]],
                                       catalog_codes = death_icd10_appears, 

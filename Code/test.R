@@ -15,3 +15,10 @@ test2<- curate_settings(test)
 
 outcome_list_by_dataset <- test2$data_loop_lists
 datasets_needed<-test2$data_requirements
+
+
+# create self-report definition
+
+test3<-match_self_report(definitions=test2$outcomes_def, 
+                            self_report_file="~/Inputs/ukb_input_data/data.csv", 
+                            suffix="_SR")

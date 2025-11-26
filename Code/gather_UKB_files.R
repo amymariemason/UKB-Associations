@@ -149,3 +149,53 @@ curate_settings <- function(settings) {
 
 ### load the nessisary files
 
+# Loop through the dataset requirements produced by `curate_settings()` and
+# ensure the necessary source files are present locally.  A sensible default
+# mapping from requirement flags to RAP paths is provided; callers can override
+# this to suit their environment or to add new datasets.
+load_required_datasets <- function(curated_settings,
+                                   work_dir = "./Inputs",
+                                   dataset_map = list(
+                                     demographics ="common/Demographics/demographics.csv",
+                                     icd9 = "common/Hospital Records/diagnoses.csv",
+                                     icd10 = "common/Hospital Records/diagnoses.csv",
+                                     death = "common/Deaths/death_causes.csv",
+                                     self_report = "users/Amy/outcomes_scripts/raw_data/data.csv",
+                                     procedures = "common/Hospital Records/operations.csv",
+                                     cancer_registry = "common/Cancer Register/cancer_register.csv",
+                                     primary_care_read = "/common/Primary Care/gp_clinical_records.csv"
+                                   )) {
+  if (is.null(curated_settings$data_requirements)) {
+    stop("The curated settings object does not contain a 'data_requirements' element.")
+  }
+  
+  flags <- curated_settings$data_requirements
+  if (nrow(flags) == 0) {
+    stop("No dataset requirements were found in the curated settings object.")
+  }
+  
+  required_flags <- names(flags)[as.logical(flags[1, ])]
+  relevant_flags <- intersect(required_flags, names(dataset_map))
+  if (length(relevant_flags) == 0) {
+    message("No datasets flagged for loading.")
+    return(invisible(list()))
+  }
+  
+  rap_paths <- unique(unlist(dataset_map[relevant_flags], use.names = FALSE))
+  rap_paths <- rap_paths[!is.na(rap_paths) & rap_paths != ""]
+  
+  loaded <- lapply(rap_paths, load_from_rap, work_dir = work_dir)
+  names(loaded) <- basename(rap_paths)
+  
+  local_files <- file.path(work_dir, "input_data", basename(rap_paths))
+  message(
+    "Loaded files:\n",
+    paste(sprintf(" - %s", local_files), collapse = "\n")
+  )
+  
+  invisible(loaded)
+}
+
+
+
+

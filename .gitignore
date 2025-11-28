@@ -9,6 +9,7 @@
 */R/*
 # System / workspace configs
 *cache/
+*Inputs/
 .config/
 .local/
 .dnanexus_config/
@@ -19,7 +20,8 @@
 *.csv
 *.sample
 *.bgen
-!README.csv  # keep explicit data files if needed
+!README.csv # keep explicit data files if needed
+!Inputs/bespoke_outcome_v4.xlsx
 .Rproj.user
 *.tar.gz
 R/*

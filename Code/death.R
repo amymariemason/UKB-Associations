@@ -3,9 +3,9 @@
 
 ### as with the self report, but this time use Scott's preprocessed data
 
-make_hes <- function(definitions,
+match_death <- function(definitions,
                      death_file="Inputs/input_data/death_causes.csv",
-                     suffix="_hes") {
+                     suffix="_death") {
   library(data.table)
   library(purrr)
   
@@ -13,7 +13,7 @@ make_hes <- function(definitions,
   raw <- fread(death_file, na.strings = c("", "NA")) 
   
  death<- raw %>%
-    select(eid, icd_version, diag_icd)
+    select(eid, cause_icd10)
   all_eids <-unique(raw$eid)
   
   # make definition list
@@ -29,8 +29,7 @@ make_hes <- function(definitions,
         
         data.table(
           outcome_id = def$outcome_id,
-          icd_version   = field_icd_type,
-          pattern    = as.character(pats)
+          cause_icd10   = as.character(pats)
         )
       }), use.names = TRUE)
     }),
@@ -42,48 +41,27 @@ make_hes <- function(definitions,
     stop("No hes patterns found in definitions.")
   }
   
-  # Ensure types
-  death[, icd_version := as.integer(icd_version)]
-  deflist[, icd_version := as.integer(icd_version)]
-  
-  
-  # ---- Split by ICD version (ICD-9 vs ICD-10) ----
-  versions <- sort(unique(deflist$icd_version))
-  
   results <- list()
   
-  for (v in versions) {
-    message("Matching ICD version ", v, "...")
-    
-    def_v <- deflist[icd_version == v]
-    hosp_v <- hosp[icd_version == v]
-    
-    if (nrow(hosp_v) == 0 || nrow(def_v) == 0) next
+    message("Matching ICD10 to death certificates ")
     
     # Exact match via join (FAST!)
-    setkey(hosp_v, diag_icd)
-    setkey(def_v, pattern)
+    setkey(death, cause_icd10)
+    setkey(deflist, cause_icd10)
     
-    merged <- def_v[hosp_v, nomatch = 0L, allow.cartesian = TRUE]
+    merged <- deflist[death, nomatch = 0L, allow.cartesian = TRUE]
     
-    if (nrow(merged) == 0) next
+    if (nrow(merged) == 0) {
+      message("No deaths found")
+      return(data.table(eid = all_eids))
+    }
     
     # Collapse to binary indicator
-    indicator <- merged[, .(has = TRUE), by = .(eid, outcome_id)]
+    results <- merged[, .(has = TRUE), by = .(eid, outcome_id)]
     
-    results[[as.character(v)]] <- indicator
-  }
-  
-  # ---- Combine all ICD versions ----
-  if (length(results) == 0) {
-    warning("No ICD matches found.")
-    return(data.table(eid = all_eids))
-  }
-  
-  indicator_all <- rbindlist(results, use.names = TRUE)
-  
+
   # ---- Wide reshape ----
-  wide <- dcast(indicator, eid ~ outcome_id, value.var = "has", fill = FALSE)
+  wide <- dcast(results, eid ~ outcome_id, value.var = "has", fill = FALSE)
   
   # ---- Include all participants ----
   final <- merge(data.table(eid = all_eids), wide, by="eid", all.x=TRUE)

@@ -141,6 +141,7 @@ match_self_report<-function(definitions=test2$outcomes_def,
     indicator,
     eid ~ outcome_id,
     value.var = "has_self_report",
+    fun.aggregate = any,
     fill = FALSE
   )
   

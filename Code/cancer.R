@@ -108,6 +108,99 @@ match_cancer_icd<- function(definitions,
   
 }
 
-
-
+match_cancer_histology<- function(definitions,
+                            cancer_file="Inputs/input_data/cancer_register.csv",
+                            suffix="_cancer_hist") {
+  library(data.table)
+  library(purrr)
+  
+  
+  raw <- fread(cancer_file, na.strings = c("", "NA")) 
+  
+  cancer<- raw %>%
+    mutate(hist=sub("M-", "", icdO3_code),
+           type= "hist_code") %>%
+    select(eid, hist, type)%>%
+    filter(!(is.na(hist)|hist==""))
+    
+  all_eids <-unique(raw$eid)
+  
+  # make definition list
+  deflist <- rbindlist(
+    lapply(definitions, function(def) {
+      icd_fields <- names(def)[grepl("^cancer", names(def))]
+      if (!length(icd_fields)) return(NULL)
+      
+      rbindlist(lapply(icd_fields, function(nm) {
+        pats <- def[[nm]]
+        if (is.null(pats) || length(pats) == 0) return(NULL)
+        
+        data.table(
+          outcome_id = def$outcome_id,
+          type="hist_code",
+           pattern    = as.character(pats)
+        )
+      }), use.names = TRUE)
+    }),
+    use.names = TRUE, fill = TRUE
+  )
+  
+  
+  if (nrow(deflist) == 0) {
+    stop("No histology patterns found in definitions.")
+  }
+  
+  
+  # join the sets
+  
+  setkey(cancer, type)
+  setkey(deflist, type)
+  
+  merged <- deflist[cancer, nomatch=0L, allow.cartesian=TRUE]
+  
+  ## check for matches
+  
+  merged[, match := mapply(grepl, pattern, hist)]
+  
+  
+  ## collapse to binary indicator for each eid and outcome
+  ## NB: this only contains the matches
+  indicator <- merged[
+    match == TRUE,
+    .(has_self_report = TRUE),
+    by = .(eid, outcome_id)
+  ]
+ 
+  
+  # ---- Combine all ICD versions ----
+  if (length(results) == 0) {
+    warning("No histology matches found.")
+    return(data.table(eid = all_eids))
+  }
+  
+  # ---- Wide reshape ----
+  wide <- dcast(indicator, eid ~ outcome_id, 
+                value.var = "has", 
+                fill = FALSE,
+                fun.aggregate = any)
+  
+  # ---- Include all participants ----
+  final <- merge(data.table(eid = all_eids), wide, by="eid", all.x=TRUE)
+  
+  for (col in names(final)[-1]) {
+    set(final, which(is.na(final[[col]])), col, FALSE)
+  }
+  
+  # ---- Add _SR suffix ----
+  if (suffix != "") {
+    setnames(final, old = names(final)[-1],
+             new = paste0(names(final)[-1], suffix))
+  }
+  # ---- Diagnostics ----
+  message("\nCancer register histology match counts:")
+  print(final[, lapply(.SD, sum), .SDcols = names(final)[-1]])
+  
+  return(final)  
+  
+}
 

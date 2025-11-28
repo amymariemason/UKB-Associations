@@ -260,7 +260,7 @@ read_outcome_definitions <- function(path, outcome_filter = NULL) {
         procedures_opcs4 = resolve_code_patterns(code_string = row[["procedures_opcs4"]],
                                                  catalog_codes = opcs4_appears, 
                                                  wildcard="[0-9]*"), 
-        cancer_registry = parse_code_vector(row[["cancer_histology"]], wildcard = "[0-9]*"),
+        cancer_registry = parse_code_vector(row[["cancer_histology"]], wildcard = "[0-9/]*"),
         read_v2 = resolve_code_patterns(code_string = row[["read_v2_primary_care_codes"]],
                                         catalog_codes = read2_codes_appears, 
                                         wildcard="[0-9]*"), 

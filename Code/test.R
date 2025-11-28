@@ -8,7 +8,7 @@ source("~/Code/gather_UKB_files.R")
 path<- "Inputs/bespoke_outcome_v4.xlsx"  
 
 #make definitions long file
-test<- parse_control_sheet(path, CVD=T)   
+test<- parse_control_sheet(path, CANCER=T)   
 
 # create summary of what data is needed
 test2<- curate_settings(test)
@@ -18,11 +18,15 @@ datasets_needed<-test2$data_requirements
 
 load_required_datasets(test2)
 
+# create initial list of eids
+
+eid_list<-load_from_rap("/users/Amy/MR_base_european_unrelated.csv",work_dir = "./Inputs")
+
 # create self-report variables
 
 source("~/Code/self_report.R")
 outcomes_SR<-match_self_report(definitions=test2$outcomes_def, 
-                            self_report_file="~/Inputs/ukb_input_data/data.csv", 
+                            self_report_file="~/Inputs/input_data/data.csv", 
                             suffix="_SR")
 
 ## create hes variables

@@ -43,3 +43,6 @@ outcomes_death <- match_death(definitions=test2$outcomes_def,
                         suffix="_death")
 
 ## create cancer variables
+
+
+

@@ -1,0 +1,39 @@
+Description of the MR_base_european_unrelated
+
+This is restricted to only white european unrelated people, using QCed_European and exclusion_list
+
+eid
+UK Biobank participant identifier.
+
+PC1–PC10
+First ten genetic principal components used to adjust for population structure.
+Created by CEU in house on the european restricted data only
+
+ages
+Baseline age at assessment.
+Derived from year and birth month, then mean-centred
+
+agesq
+Squared term of centred age (ages²).
+Derived variable 
+
+bmi
+Body Mass Index at baseline.
+Underlying field: 21001-0.0 (“Body mass index”).
+
+neversmoker
+Indicator for never-smoked status.
+Usually derived from fields 20116-0.0 (“Smoking status”)
+Value = 1 for “Never”, else 0.
+
+assessment_centre
+Code for the assessment centre at which the baseline visit occurred.
+Underlying field: 54-0.0 (“Assessment centre code”).
+
+sex
+Biological sex as recorded by UK Biobank.
+Underlying field: 31-0.0 (“Sex”).
+
+townsend
+Townsend deprivation index at recruitment (higher = more deprived).
+Underlying field: 22189-0.0 (“Townsend deprivation index at recruitment”).

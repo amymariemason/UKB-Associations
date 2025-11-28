@@ -176,6 +176,7 @@ load_required_datasets <- function(curated_settings,
   
   required_flags <- names(flags)[as.logical(flags[1, ])]
   relevant_flags <- intersect(required_flags, names(dataset_map))
+  relevant_flags <- union(relevant_flags, c("demographics"))
   if (length(relevant_flags) == 0) {
     message("No datasets flagged for loading.")
     return(invisible(list()))

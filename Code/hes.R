@@ -39,7 +39,7 @@ match_hes1 <- function(definitions,
   
   
   if (nrow(deflist) == 0) {
-    stop("No hes patterns found in definitions.")
+    stop("No icd patterns found in definitions.")
   }
   
   # Ensure types
@@ -146,7 +146,7 @@ match_hes2 <- function(definitions,
   
   
   if (nrow(deflist) == 0) {
-    stop("No hes patterns found in definitions.")
+    stop("No opcs patterns found in definitions.")
   }
   
   # Ensure types

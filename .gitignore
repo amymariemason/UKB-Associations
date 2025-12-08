@@ -10,6 +10,7 @@
 # System / workspace configs
 *cache/
 *Inputs/
+*Outputs/
 .config/
 .local/
 .dnanexus_config/

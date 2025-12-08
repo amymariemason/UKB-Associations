@@ -123,7 +123,8 @@ read3_codes_appears<- load_from_rap(rap_path="/common/Primary Care/read3_codes.c
 # simple key/value layout and a list of outcomes to produce.
 
 #test:  path<- "Inputs/bespoke_outcome_v3.xls"
-read_settings_sheet <- function(path, CVD=F, CANCER=F) {
+read_settings_sheet <- function(path, CVD=F, CANCER=F, DIABETES= NULL, SHEET=SHEET,
+                                INPUT=NULL, custom_filename=NULL){
   settings_raw <- readxl::read_excel(path, sheet = "Settings", .name_repair = "minimal",   col_types = "text")
   if (nrow(settings_raw) == 0) {
     stop("The Settings sheet is empty – please check the control sheet.")
@@ -137,35 +138,65 @@ read_settings_sheet <- function(path, CVD=F, CANCER=F) {
   settings_raw <- settings_raw %>% filter(!is.na(setting))
   
   #get filename
-  filename_out<- settings_raw %>% filter(setting=="Filename") %>% pull(value)
   
-  if (CVD){
+  filename_out<-""
+ 
+  if (CVD && !CANCER && is.null(INPUT) && !SHEET ){
     filename_out<-"CVD"
-    }
-  if (CANCER){
+  }
+  if (CANCER && !CVD&& is.null(INPUT) && !SHEET ){
     filename_out<-"Cancer"
-    }
+  }
+  if (SHEET && !CVD && !CANCER && is.null(INPUT)) {
+    filename_out<- settings_raw %>% filter(setting=="Filename") %>% pull(value)
+  }
+  if (!is.null(custom_filename)){
+    filename_out<-custom_filename
+  } 
   
-  filename_out<-ifelse(is.na(filename_out)|filename_out=="" ,"temp", filename_out)
-  filename_out<-paste0(filename_out,"_",format(Sys.Date(), "%M%Y"))
+  filename_out<-ifelse(is.na(filename_out)|filename_out=="" ,"unnamed_outcomes", filename_out)
+  filename_out<-paste0(filename_out,"_",format(Sys.Date(), "%b_%Y"))
                        
   # get diabetes
   diabetes_flag<- parse_yes_no(settings_raw %>% filter(setting=="diabetes") %>% pull(value))
+  
+  if(DIABETES){
+    diabetes_flag =TRUE
+  }
                        
-   # get list of outcomes wanted
-   value_map <- settings_raw$value
-   if (CVD){
-    value_map<-settings_raw$cvdset}
-   if (CANCER){
-    value_map<-settings_raw$cancerset}
-    
+  # get list of outcomes wanted
+  value_map <- settings_raw$value
+
   value_map<- vapply(value_map, parse_yes_no, FUN.VALUE = logical(1))
   
   requested_outcomes <- character()
   
   keep_rows <- which(value_map==TRUE)
+
+  
+  if (SHEET) {
   requested_outcomes <- settings_raw$setting[keep_rows]
+  }
+  
+  if (CVD){
+    requested_outcomes<-union(requested_outcomes, c("aa", "aaa", "af", "ast", "cad_int", "ckd",
+                          "dvt","haem", "hf", "ischtia", "pe", "pvd_simple",
+                          "taa", "tia", "ukb_ich", "ukb_sah", "ukb_stri", 
+                          "ukb_stroke", "vte") ) }
+  if (CANCER){
+    requested_outcomes<-union(requested_outcomes, c("ca_all", "ca_bil", "ca_blad", "ca_bowel", "ca_brain",
+                          "ca_breast", "ca_cerv", "ca_colon", "ca_gastric", 
+                          "ca_headneck", "ca_hep", "ca_hx_GI", "ca_kid",
+                          "ca_leuk", "ca_lung", "ca_mel",  "ca_myeloma", 
+                          "ca_nhl", "ca_oeso", "ca_ov", "ca_panc", "ca_prost", 
+                          "ca_rectal", "ca_smains", "ca_test", "ca_thyroid",
+                          "ca_uter"))}
+  if (!is.null(INPUT)) {
+    requested_outcomes <- union(requested_outcomes, INPUT)
+  }
+  
   requested_outcomes <- requested_outcomes[requested_outcomes != ""]
+  requested_outcomes <- sort(unique(requested_outcomes))
   
   return(list(
     filename= filename_out,
@@ -248,6 +279,7 @@ read_outcome_definitions <- function(path, outcome_filter = NULL) {
         death = resolve_code_patterns(code_string = row[["death_40001_40002"]],
                                       catalog_codes = death_icd10_appears, 
                                       wildcard="[0-9]*"), 
+        self_report_20001 = parse_code_vector(row[["self_report_20001"]], wildcard = "[0-9]*"),
         self_report_20002 = parse_code_vector(row[["self_report_20002"]], wildcard = "[0-9]*"),
         self_report_20004 = parse_code_vector(row[["self_report_20004"]], wildcard = "[0-9]*"),
         self_report_6150 = parse_code_vector(row[["self_report_6150"]], wildcard = "[0-9]*"),
@@ -281,8 +313,9 @@ read_outcome_definitions <- function(path, outcome_filter = NULL) {
 #   * matched_outcomes – list of matched outcome
 #   * diabetes_flag – TRUE if diabetes specific post-processing is required
 #   * outcomes_def - list of lists of the definitions defined
-parse_control_sheet <- function(path, CVD=F, CANCER=F) {
-    settings <- read_settings_sheet(path,CVD = CVD, CANCER = CANCER)
+parse_control_sheet <- function(path, CVD=FALSE, CANCER=FALSE, INPUT=NULL, custom_filename=NULL, SHEET=TRUE, DIABETES=FALSE) {
+    settings <- read_settings_sheet(path,CVD = CVD, CANCER = CANCER, SHEET=SHEET, 
+                                    INPUT=INPUT, DIABETES=DIABETES, custom_filename=custom_filename)
     outcomes <- read_outcome_definitions(path, outcome_filter = settings$outcomes)
     list(
        filename_out = settings$filename,

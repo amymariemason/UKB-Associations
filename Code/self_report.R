@@ -157,7 +157,7 @@ match_self_report<-function(definitions=test2$outcomes_def,
     all.x = TRUE
   )
   
-assert(length(final$eid)==length(raw$eid))
+stopifnot(length(final$eid)==length(raw$eid))
 
 # fill back with false where no report found
 

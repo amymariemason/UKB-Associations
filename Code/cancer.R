@@ -118,7 +118,7 @@ match_cancer_histology<- function(definitions,
   raw <- fread(cancer_file, na.strings = c("", "NA")) 
   
   cancer<- raw %>%
-    mutate(hist=sub("M-", "", icdO3_code),
+    mutate(hist=sub("/.*", "",sub("M-", "", icdO3_code)),
            type= "hist_code") %>%
     select(eid, hist, type)%>%
     filter(!(is.na(hist)|hist==""))
@@ -128,17 +128,17 @@ match_cancer_histology<- function(definitions,
   # make definition list
   deflist <- rbindlist(
     lapply(definitions, function(def) {
-      icd_fields <- names(def)[grepl("^cancer", names(def))]
-      if (!length(icd_fields)) return(NULL)
+      hist_fields <- names(def)[grepl("^cancer", names(def))]
+      if (!length(hist_fields)) return(NULL)
       
-      rbindlist(lapply(icd_fields, function(nm) {
+      rbindlist(lapply(hist_fields, function(nm) {
         pats <- def[[nm]]
         if (is.null(pats) || length(pats) == 0) return(NULL)
         
         data.table(
           outcome_id = def$outcome_id,
           type="hist_code",
-           pattern    = as.character(pats)
+          pattern    = as.character(pats)
         )
       }), use.names = TRUE)
     }),
@@ -167,7 +167,7 @@ match_cancer_histology<- function(definitions,
   ## NB: this only contains the matches
   indicator <- merged[
     match == TRUE,
-    .(has_self_report = TRUE),
+    .(has = TRUE),
     by = .(eid, outcome_id)
   ]
  

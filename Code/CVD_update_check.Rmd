@@ -1,0 +1,120 @@
+---
+title: "CVD check"
+author: "Amy Mason"
+date: "24/10/2022"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = "/home/rstudio-server")
+```
+
+## Upload the old & new cancer data 
+
+```{r cars}
+
+library(readr)
+#old data
+new<-  read.csv("./Outputs/CVD_Dec_2025.csv")
+old1 <- read.csv("./Inputs/CVD_Oct22.sample", sep = "")
+
+
+# merge
+test<-merge(x=old1, by.x="overarching_eid", y=new, by.y="eid", all.x=FALSE, all.y=TRUE)
+
+```
+
+## Make tables comparing them
+
+Note: Old is rows, new is columns. Ideally all tables should be nearly upper triangular.
+
+
+
+
+Ischemic Cerebrovascular Disease
+```{r}
+table(test$ischtia.x, test$ischtia.y)
+```
+Hemorrhagic Stroke
+```{r}
+table(test$haem.x, test$haem.y)
+```
+Venous thromboembolism
+```{r}
+table(test$vte.x, test$vte.y)
+```
+
+
+
+UKB's algorithmically defined stroke	
+```{r}
+table(test$ukb_stroke.x,test$ukb_stroke.y)
+```
+
+UKB's algorithmically defined ischaemic stroke	
+```{r}
+table(test$ukb_stri.x, test$ukb_stri.y)
+```
+
+UKB's algorithmically defined subarachnoid haemorrhage	
+```{r}
+table(test$ukb_sah.x, test$ukb_sah.y)
+```
+
+UKB's algorithmically defined intracerebral haemorrhage	
+```{r}
+table(test$ukb_ich.x, test$ukb_ich.y)
+```
+
+Transient ischaemic attack	
+```{r}
+table(test$tia.x, test$tia.y)
+```
+
+Thoracic aortic aneurysm	
+```{r}
+table(test$taa.x, test$taa.y)
+```
+
+Peripheral vascular disease new	
+```{r}
+table(test$pvd_simple.x, test$pvd_simple.y)
+```
+
+Pulmonary embolism 	
+```{r}
+table(test$pe.x, test$pe.y)
+```
+
+Heart failure	
+```{r}
+table(test$hf.x, test$hf.y)
+```
+
+Deep venous thrombosis	
+```{r}
+table(test$dvt.x, test$dvt.y)
+```
+
+'Intermediate' coronary artery disease	
+```{r}
+table(test$cad_int.x, test$cad_int.y)
+```
+
+Aortic stenosis	
+```{r}
+table(test$ast.x, test$ast.y)
+```
+
+Atrial fibrillation (and flutter)	
+```{r}
+table(test$af.x, test$af.y)
+```
+
+Abdominal aortic aneurysm	
+```{r}
+table(test$aaa.x, test$aaa.y)
+```

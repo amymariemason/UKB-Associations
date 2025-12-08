@@ -173,7 +173,7 @@ match_cancer_histology<- function(definitions,
  
   
   # ---- Combine all ICD versions ----
-  if (length(results) == 0) {
+  if (length(indicator) == 0) {
     warning("No histology matches found.")
     return(data.table(eid = all_eids))
   }

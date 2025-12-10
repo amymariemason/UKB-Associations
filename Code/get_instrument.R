@@ -23,7 +23,7 @@ new_vars<- Saunders_2022_Supplement %>%
 
 both_sets<- rbind(old_vars, new_vars)
 dups <- duplicated(both_sets %>% select(chr, pos))
-both_sets_unique<- both_sets[!dups,]
+both_sets_unique<- both_sets[!dups,] %>% arrange(chr, pos)
 
 ###############################
 
@@ -34,13 +34,11 @@ library(pacman)
 p_load_gh("lcpilling/ukbrapR")
 
 
-varlist <- data.frame(rsid=c("rs1800562","rs429358"), chr=c(6,19))
+varlist <- data.frame(rsid=both_sets_unique$snp, chr=both_sets_unique$chr) 
 
-imputed_genotypes <- extract_variants(varlist)
-#> ~10 seconds
+imputed_genotypes <- extract_variants(varlist,out_bed = "alcohol_and_smoking")
+#> ~1h 40 minutes
 
 dim(imputed_genotypes)
-#> [1] 487409      3
-
 
 

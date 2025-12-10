@@ -10,6 +10,7 @@
 *.bed
 *.fam
 *.bim
+*_ukbrapr*
 # System / workspace configs
 *cache/
 *Inputs/

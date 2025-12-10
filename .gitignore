@@ -7,6 +7,9 @@
 *.Rproj.RData
 *.Renviron
 */R/*
+*.bed
+*.fam
+*.bim
 # System / workspace configs
 *cache/
 *Inputs/

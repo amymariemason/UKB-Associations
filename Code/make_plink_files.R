@@ -24,10 +24,11 @@ covar_plink <- covar %>%
       sex=="Male" ~ 1L,
       sex=="Female" ~ 2L,
       TRUE ~ -9L),
-    ages,
-    agesq,
+    ages= ages - mean(ages, na.rm = TRUE),
+    agesq_raw = ages^2,
+    agesq = resid(lm(agesq_raw ~ ages)),
     centre=assessment_centre,
-    bmi,
+    bmi = bmi- - mean(bmi, na.rm = TRUE),
     neversmoker,
     townsend
   ) %>%

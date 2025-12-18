@@ -2,15 +2,14 @@
 # create instrument 
 ####################################################
 
-
+library(tidyverse)
 #  new alcohol instrument define
 
 alcovars99_updated <- read_csv("Inputs/alcovars99_updated.csv")
 
 library(readxl)
 Saunders_2022_Supplement <- read_excel("Inputs/Saunders_2022_Supplement.xlsx", 
-                                         +     sheet = "alcohol_smoking")
-library(tidyverse)
+                                              sheet = "alcohol_smoking")
 
 ####
 old_vars <- alcovars99_updated   %>% filter (Chr!="") %>%
@@ -24,6 +23,10 @@ new_vars<- Saunders_2022_Supplement %>%
 both_sets<- rbind(old_vars, new_vars)
 dups <- duplicated(both_sets %>% select(chr, pos))
 both_sets_unique<- both_sets[!dups,] %>% arrange(chr, pos)
+
+output_snpset <- both_sets_unique %>% select(chr, pos, phenotype, snp)
+
+write_csv(output_snpset, file="Inputs/alcovars5000.csv")
 
 ###############################
 
